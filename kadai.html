@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="css/reset.css">
+<link rel="stylesheet" href="css/style.css">
+
+<!-- ウェブ アプリケーションに Firebase Authentication を追加 -->
+<script src="https://www.gstatic.com/firebasejs/ui/4.6.1/firebase-ui-auth.js"></script>
+<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.6.1/firebase-ui-auth.css" />
+<link href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" rel="stylesheet">
+
+<title>Chatアプリ</title>
+</head>
+<body>
+
+
+<!-- コンテンツ表示画面 -->
+    <div>
+        <h1> Chat apps</h1>
+        <div id="time"></div>
+        <div id="output" style="height: 300px;overflow: auto;border: 4px solid lightseagreen;"></div>
+    </div>
+
+<!--/ コンテンツ表示画面 -->
+
+<!-- 入力エリア -->
+<div id="wrapper_input">
+    <!-- <div id="btn">hoge</div> -->
+    <div id='uname'>(no name)</div>
+    <!-- <input type="text" id='uname'></div> -->
+    <div id="txt_area">
+        <textarea id="text" cols="30" rows="5"></textarea><!-- cols:文字数,rows:行数 -->
+        <div id="txt_area_parts">
+            <div id="txt_count"></div>
+            <button id="send" style="display:none">送信</button>
+        </div>
+    </div>
+</div>
+
+<!-- <h1>Welcome to Chat App</h1> -->
+<!-- <div id="firebaseui-auth-container"></div> -->
+
+<div id="info"></div>
+<form>
+  <button type="button" id="logout" class="hide">ログアウト</button>
+  <button type="button" id="login" onclick="location.href='./index.html'">ログイン</button>
+</form>
+
+
+<!-- <script src="https://www.gstatic.com/firebasejs/5.8.1/firebase-app.js"></script> -->
+<script src="https://www.gstatic.com/firebasejs/5.8.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/ui/3.5.2/firebase-ui-auth__ja.js"></script>
+
+<!-- JQuery -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<!-- JQuery -->
+
+<!--** 以下Firebase **-->
+<!-- The core Firebase JS SDK is always required and must be listed first -->
+<script src="https://www.gstatic.com/firebasejs/7.20.0/firebase.js"></script>
+
+<!-- TODO: Add SDKs for Firebase products that you want to use
+     https://firebase.google.com/docs/web/setup#available-libraries -->
+
+<script>
+
+    // Your web app's Firebase configuration
+    var firebaseConfig = {
+    apiKey: "AIzaSyDEsSxCwb6D0lP4oUduoGTGugIbZedgnhM",
+    authDomain: "dev17-375d3.firebaseapp.com",
+    databaseURL: "https://dev17-375d3.firebaseio.com",
+    projectId: "dev17-375d3",
+    storageBucket: "dev17-375d3.appspot.com",
+    messagingSenderId: "508483971542",
+    appId: "1:508483971542:web:3275a07f00a4052382dc77"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+
+    // ===============================================
+    // Firebaseの送信オブジェクト:.ref(): ユニークキのー自動発行,.ref('book')とすると...?
+    const ref = firebase.database().ref();
+
+    var user = firebase.auth().currentUser;
+
+    firebase.auth().onAuthStateChanged(function(user) {
+        
+      if(user) {
+
+        // signed in : ログイン
+        let displayName = user.displayName;
+        let photo    = user.photoURL;
+
+        // 登録ユーザに画像がなければこのタイミングで強制的に作成（強引)
+        if( photo === null){
+            let icons = [ "./imgs/buke.png", "./imgs/caram.png", "./imgs/tuku.jpg"] ;
+            let icon = icons[ Math.floor( Math.random() * icons.length ) ] ;
+
+            user.updateProfile({
+                photoURL: icon
+                }).then(function() {
+                // Update successful.
+                }).catch(function(error) {
+                // An error happened.
+                });
+        }
+        photo = user.photoURL;
+        
+        $("#uname").html('<img src='+photo+' id="toker_mini"><div id="uname_mini">'+ displayName+'</div>');
+        $("#login").attr('disabled', true);        
+        $("#logout").attr('disabled', false);
+
+      }else{
+
+        // loged out : ログアウト
+        $("#uname").html('<i class="fas fa-user-circle fa-1.8x" ></i><div id="uname_mini">(no name)</div>');
+        $("#logout").attr('disabled', true);
+        $("#login").attr('disabled', false);
+        $("#text").attr('disabled',true);
+        $("#text").html("Please login ...");
+        return(false);
+      }
+
+    });
+
+    // ログアウトボタンを押下
+    $("#logout").on("click",function(){
+
+        firebase.auth().signOut().then(()=>{
+            $("#uname").html('<i class="fas fa-user-circle fa-1.8x" ></i><div id="uname_mini">(no name)</div>');
+            $("#logout").attr('disabled', true);
+            $("#login").attr('disabled', false);
+            $("#text").attr('disabled',true);
+            $("#text").html("Please login ...");            
+            // user = firebase.auth().currentUser;
+            // console.log("ログアウトしました");
+        })
+        .catch( (error)=>{
+        console.log(`ログアウト時にエラーが発生しました (${error})`);
+        });
+    });
+
+
+    // 関数: ミリ秒 → 日付フォーマット（表示用  ----------------------------
+    function return_date(target_date){
+        let now = new Date(target_date);
+        let year = now.getFullYear();
+        let mon = ("0"+(now.getMonth() + 1)).slice(-2); 
+        let day = ("0"+now.getDate()).slice(-2);
+        let hour = ("0"+now.getHours()).slice(-2);
+        let min = ("0"+now.getMinutes()).slice(-2);
+        let sec = now.getSeconds();
+        return year + "/" + mon + "/" + day + "/" + hour + ":" + min;
+    }
+    function return_date_sec(target_date){
+        let now = new Date(target_date);
+        let year = now.getFullYear();
+        let mon = ("0"+(now.getMonth() + 1)).slice(-2); 
+        let day = ("0"+now.getDate()).slice(-2);
+        let hour = ("0"+now.getHours()).slice(-2);
+        let min = ("0"+now.getMinutes()).slice(-2);
+        let sec = ("0"+now.getSeconds()).slice(-2);
+        return year + "/" + mon + "/" + day + "/" + hour + ":" + min + ":" + sec;
+    }
+    $(function(){
+        setInterval(function(){
+            $('#time').text(return_date_sec(new Date()));
+        }, 1000);
+    });
+
+    // 関数: ２時点の経過日数を返す（表示用  ----------------------------
+    function return_diff_date(tagt_date,base_date){ //tagt_date < base_date
+        let t_date = new Date(tagt_date);
+        let b_date = new Date(base_date);
+        let msec  = b_date - t_date; // milli-second
+        let sec   = Math.floor(msec/(1000)); // second
+        let mins  = Math.floor(msec/(1000*60)); // minutes
+        let hours = Math.floor(msec/(1000*60*60)); // hours
+        let days  = Math.floor(msec/(1000*60*60*24)); // days
+
+        if(days>0){
+            return days+"日前";
+        }else if(hours>0){
+            return hours+"時間前";
+        }else if(mins>0){
+            return mins+"分前";
+        }else if(sec == 0){
+            return "いま";
+        }else{
+            return sec+"秒前";
+        }
+    }    
+
+    // 関数:send  ----------------------------
+    function send(){
+
+        user = firebase.auth().currentUser;
+        const uname = user.displayName;
+        const text  = $("#text").val();
+        let now = new Date();
+        now = now.getTime();//加減算しやすいようミリ秒で保持
+
+        const msg = {
+            uname : uname,
+            text : text,
+            msec : now,
+            icon : user.photoURL
+        };
+
+        ref.push(msg);// push=ユニーク識別子（採番？）で保存、set=決まった名前で保存
+        $("#text").val('');
+        
+    }
+    // 関数:view  ----------------------------
+    function view(dt){
+
+        const v = dt.val(); //送信されたオブジェクトを取得
+        const k = dt.key;   //ユニークキーの取得
+
+        let msg_time_msec = v.msec;
+        let now = new Date();
+        let diff = return_diff_date(msg_time_msec,now);
+        let msg_date = return_date(msg_time_msec);
+        let user = firebase.auth().currentUser;
+
+        let html_left = `
+            <div id="output_parts_left">
+                <ul>
+                    <li>
+                        <img src=${v.icon} id="toker">
+                        <div id="v_uname">${v.uname}</div>
+                    </li>
+                    <li>
+                        <div id="v_txt">${v.text}</div>
+                        <div id="v_time">${diff} ${msg_date} posted</div>
+                    </li>
+                <ul>
+            </div>`;
+        
+        let html_right = `
+            <div id="output_parts_right">
+                <ul>
+                    <li>
+                        <div id="v_txt_right">${v.text}</div>
+                        <div id="v_time_right">${diff} ${msg_date} posted</div>
+                    </li>
+                    <li>
+                        <img src=${v.icon} id="toker">
+                        <div id="v_uname">${v.uname}</div>
+                    </li>                    
+                <ul>
+            </div>`;
+
+        if( user.displayName == v.uname){
+            $("#output").append(html_right);
+        }else{
+            $("#output").append(html_left);
+        }
+
+        // メッセージ最後にスクロール
+        let h = $('#output').get(0).scrollHeight;
+        $("#output").scrollTop(h);
+
+    }
+  
+    // UI : 入力文字の送信 ----------------------------
+    $("#send").on("click", function(){
+
+    send();
+    });
+
+    // UI : RealtimeDBの文字を受信 ----------------------------
+    ref.on("child_added",function(data){
+
+    view(data);
+    });
+
+    // UI : 送信ボタン（テキストエリア入力で表示 ------------------------
+    $("#text").keyup(function(){
+
+        if($(this).val().length>0){
+            $("#send").fadeIn(1000);
+            $("#txt_count").html("文字数<br>"+$(this).val().length).fadeIn(1000);
+        }else{
+            $("#txt_count").html("文字数<br>"+$(this).val().length).fadeOut(300);
+            $("#send").fadeOut(300);
+        }
+    });
+    // キーダウンを把握 ------------------------
+    $("#body").on("click",function(e){
+        console.log(e);
+    });
+
+
+
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
